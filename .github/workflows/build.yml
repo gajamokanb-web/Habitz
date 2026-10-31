@@ -21,7 +21,11 @@ jobs:
       - name: Accept Android licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon 2>&1 | tee build.log || {
+            grep -E '^e: |error:|What went wrong|Execution failed' -A2 build.log | head -60 | sed 's/^/::error::/' ;
+            exit 1; }
       - uses: actions/upload-artifact@v4
         with:
           name: Habitz-v0.3.0-debug
