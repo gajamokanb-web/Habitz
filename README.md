@@ -1,24 +1,16 @@
-# Le Système — Habit Tracker RPG (MVP)
+# Habitz — Habit Tracker RPG
 
-Prototype Android natif en Kotlin + Jetpack Compose, inspiré du style dark fantasy / Solo Leveling.
+Application Android native (Kotlin + Jetpack Compose) : un suivi d'habitudes au style dark fantasy RPG, thème violet, brouillard et particules animés.
 
-## Fonctionnalités incluses
-- Tableau de bord quotidien avec progression, XP et niveau
-- Habitudes préchargées et validation interactive
-- Calcul XP et montée de niveau
-- Quêtes quotidiennes simples
-- Statistiques de base
-- Profil / attributs RPG
-- Sauvegarde locale des validations et de l'XP via Preferences DataStore
-- Visuel dark fantasy généré et intégré comme illustration d'accueil
+## Fonctionnalités
+- **Accueil** : bande de dates (glisser / calendrier), niveau et XP, progression de la semaine, quêtes classées par catégorie, ignorer / décaler une quête, validation des jours passés ou à venir (sans XP).
+- **Quêtes** : création / modification / suppression, catégories (15 badges), difficulté, fréquence (chaque jour, jours précis, par semaine).
+- **Stats** : taux de complétion par période, courbe, répartition par catégorie, succès récents, calendrier de chaleur.
+- **Profil** : nom du ranger, export de la sauvegarde (JSON), suppression du profil, succès (consultation, progression, ajout).
+- Sauvegarde locale automatique (SharedPreferences).
 
-## Ouvrir le projet
-1. Décompresser le ZIP.
-2. Ouvrir le dossier `LeSystemeHabitTracker` dans Android Studio.
-3. Utiliser JDK 17 et laisser Gradle synchroniser.
-4. Lancer sur un émulateur Android ou un appareil (minSdk 26 / Android 8.0).
+## Build
+- JDK 17, Android Studio récent (AGP 8.7, Kotlin 2.0), minSdk 26.
+- GitHub Actions (`.github/workflows/build.yml`) construit l'APK debug à chaque push sur `main`.
 
-## Notes
-- C'est un MVP de départ, pas encore une version de production.
-- Les notifications, édition complète des habitudes, sauvegarde/export, calendrier mensuel avancé, tests automatisés et équilibrage XP restent à développer.
-- Aucun compte, serveur ou accès Internet n'est requis pour le fonctionnement actuel.
+Aucun compte, serveur ni accès Internet requis.
