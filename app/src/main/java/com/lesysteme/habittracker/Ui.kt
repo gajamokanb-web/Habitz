@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -375,6 +377,6 @@ fun Tick(done: Boolean) {
             ),
         contentAlignment = Alignment.Center,
     ) {
-        if (done) Icon(androidx.compose.material.icons.Icons.Filled.Check, null, tint = C.OnAccent, modifier = Modifier.size(20.dp))
+        if (done) Icon(Icons.Filled.Check, null, tint = C.OnAccent, modifier = Modifier.size(20.dp))
     }
 }
