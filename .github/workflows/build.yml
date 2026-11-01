@@ -28,5 +28,5 @@ jobs:
             exit 1; }
       - uses: actions/upload-artifact@v4
         with:
-          name: Habitz-v0.3.0-debug
+          name: Habitz-v0.3.1-debug
           path: app/build/outputs/apk/debug/*.apk

@@ -79,7 +79,7 @@ fun HomeScreen(st: AppState) {
     val past = HEAT.takeLast(5)
     val pct = (100f * (past.sum() / 4f + ratio) / 6f).roundToInt()
     val perfect = past.count { it == 4 } + (if (due.isNotEmpty() && doneN == due.size) 1 else 0)
-    val streak = 20 + (if (doneN > 0) 1 else 0)
+    val streak = (if (FRESH) 0 else 20) + (if (doneN > 0) 1 else 0)
     val lv = levelInfo(st.total())
     val dayDone = hs.count { st.isDoneOn(it, st.selDiff) }
     val hidden = if (st.selDiff >= 0) st.habits.filter { st.hidden(it, st.selDiff) } else emptyList()

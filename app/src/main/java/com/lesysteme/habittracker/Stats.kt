@@ -70,7 +70,7 @@ private fun seriesFor(st: AppState, p: Int, ratio: Float): Series {
         for (i in 0 until n) {
             val base = if (p == 90) 60f + 20f * i / (n - 1) else 46f + 34f * i / (n - 1)
             val phase = if (p == 90) 0.0 else 1.0
-            val v = (base + 8.0 * sin(i * 1.7 + phase)).roundToInt().coerceIn(20, 100)
+            val v = if (FRESH) 0 else (base + 8.0 * sin(i * 1.7 + phase)).roundToInt().coerceIn(20, 100)
             vals.add(v.toFloat())
             val dt = st.dateAt(-step * (n - 1 - i))
             labels.add(if (p == 90) "${dt.dayOfMonth} ${MSHORT[dt.monthValue - 1]}" else MSHORT[dt.monthValue - 1])
@@ -86,7 +86,7 @@ fun StatsScreen(st: AppState) {
     val ratio = if (due.isEmpty()) 0f else doneN.toFloat() / due.size
     val sr = seriesFor(st, st.period, ratio)
     val avg = sr.vals.average().roundToInt()
-    val streak = 20 + (if (doneN > 0) 1 else 0)
+    val streak = (if (FRESH) 0 else 20) + (if (doneN > 0) 1 else 0)
     val lv = levelInfo(st.total())
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -119,13 +119,13 @@ fun StatsScreen(st: AppState) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 T("$avg%", 24, weight = FontWeight.SemiBold)
                                 T("Complétion", 10, C.Muted)
-                                T("▲ +${PDELTA[st.period]} pts", 10, C.Green)
+                                if (!FRESH) T("▲ +${PDELTA[st.period]} pts", 10, C.Green)
                             }
                         }
                         Spacer(Modifier.width(10.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             MiniKpi(Icons.Filled.LocalFireDepartment, C.Ember, "Streak actuel", "$streak jours")
-                            MiniKpi(Icons.Filled.Star, C.Violet, "Meilleur streak", "34 jours")
+                            MiniKpi(Icons.Filled.Star, C.Violet, "Meilleur streak", if (FRESH) "0 jour" else "34 jours")
                         }
                     }
                 }
@@ -153,7 +153,7 @@ fun StatsScreen(st: AppState) {
                     val used = CATS.filter { c -> st.habits.any { it.cat == c.key } }
                     if (used.isEmpty()) T("Aucune quête.", 14, C.Muted)
                     used.forEach { c ->
-                        val v = ((RATES[c.key] ?: 75) + (POFF[st.period] ?: 0)).coerceIn(0, 100)
+                        val v = if (FRESH) 0 else ((RATES[c.key] ?: 75) + (POFF[st.period] ?: 0)).coerceIn(0, 100)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CatIcon(c.key, 24.dp)
                             Spacer(Modifier.width(6.dp))

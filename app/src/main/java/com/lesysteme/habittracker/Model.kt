@@ -114,7 +114,12 @@ fun initialHabits(): List<Habit> = listOf(
 val INIT_DONE = setOf("sport", "eau", "deep", "lecture", "medit", "proche")
 
 /** Historique des 33 derniers jours (0 = vide … 4 = journée parfaite), le dernier = hier. */
-val HEAT = listOf(3, 2, 4, 0, 3, 3, 2, 4, 4, 1, 0, 0, 3, 4, 3, 3, 2, 3, 4, 2, 2, 3, 4, 3, 2, 4, 4, 3, 3, 4, 2, 3, 4)
+val HEAT_DEMO = listOf(3, 2, 4, 0, 3, 3, 2, 4, 4, 1, 0, 0, 3, 4, 3, 3, 2, 3, 4, 2, 2, 3, 4, 3, 2, 4, 4, 3, 3, 4, 2, 3, 4)
+
+/** Vrai après suppression du profil : tout repart de zéro (niveau 1, aucun historique). */
+var FRESH by mutableStateOf(false)
+
+val HEAT: List<Int> get() = if (FRESH) List(33) { 0 } else HEAT_DEMO
 
 val RATES = mapOf("sport" to 84, "apprentissage" to 72, "productivite" to 77, "bienetre" to 81, "relations" to 79, "sommeil" to 68)
 
@@ -168,10 +173,10 @@ fun initialAchs(): List<Ach> {
 
 data class Lv(val l: Int, val r: Int, val n: Int)
 
-fun needFor(l: Int) = 22000 + (l - 34) * 800
+fun needFor(l: Int) = if (FRESH) 100 + (l - 1) * 50 else 22000 + (l - 34) * 800
 
 fun levelInfo(total: Int): Lv {
-    var l = 34
+    var l = if (FRESH) 1 else 34
     var r = total
     while (r >= needFor(l)) {
         r -= needFor(l)
@@ -358,6 +363,17 @@ class AppState(private val ctx: Context) {
     fun deleteProfile() {
         profileName = ""
         profileSaved = false
+        FRESH = true
+        habits = emptyList()
+        done = emptySet()
+        skips = emptySet()
+        moves = emptyMap()
+        marks = emptyMap()
+        selDiff = 0
+        openCats = emptySet()
+        xpBase = 0
+        achs = achs.map { it.copy(p = 0, ago = null) }
+        levelUp = null
         toast("Profil supprimé")
         save()
     }
@@ -370,6 +386,7 @@ class AppState(private val ctx: Context) {
         marks = emptyMap()
         selDiff = 0
         openCats = setOf("sport")
+        FRESH = false
         xpBase = BASE_XP
         achs = initialAchs()
         profileName = "Gajamokan"
@@ -388,6 +405,7 @@ class AppState(private val ctx: Context) {
         root.put("totalXp", total())
         root.put("level", levelInfo(total()).l)
         root.put("xpBase", xpBase)
+        root.put("fresh", FRESH)
         root.put("doneDate", doneDate)
         root.put("habits", JSONArray().also { arr -> habits.forEach { arr.put(habitToJson(it)) } })
         root.put("doneToday", JSONArray(done.toList()))
@@ -409,6 +427,7 @@ class AppState(private val ctx: Context) {
             val p = o.getJSONObject("profile")
             profileName = p.getString("name")
             profileSaved = p.getBoolean("saved")
+            FRESH = o.optBoolean("fresh", false)
             xpBase = o.getInt("xpBase")
             habits = o.getJSONArray("habits").let { a -> (0 until a.length()).map { habitFromJson(a.getJSONObject(it)) } }
             achs = o.getJSONArray("achievements").let { a -> (0 until a.length()).map { achFromJson(a.getJSONObject(it)) } }
