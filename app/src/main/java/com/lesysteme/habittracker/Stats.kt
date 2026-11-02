@@ -61,7 +61,7 @@ private fun seriesFor(st: AppState, p: Int, ratio: Float): Series {
     val labels = ArrayList<String>()
     if (p == 7 || p == 30) {
         for (d in -(p - 1)..0) {
-            vals.add(if (d < 0) HEAT[33 + d] / 4f * 100f else ratio * 100f)
+            vals.add(if (d < 0) st.dayLevel(d) / 4f * 100f else ratio * 100f)
             labels.add(if (p == 7) DOW[st.idxOf(d)] else st.dateAt(d).dayOfMonth.toString())
         }
     } else {
@@ -86,7 +86,7 @@ fun StatsScreen(st: AppState) {
     val ratio = if (due.isEmpty()) 0f else doneN.toFloat() / due.size
     val sr = seriesFor(st, st.period, ratio)
     val avg = sr.vals.average().roundToInt()
-    val streak = (if (FRESH) 0 else 20) + (if (doneN > 0) 1 else 0)
+    val streak = st.streak()
     val lv = levelInfo(st.total())
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -201,7 +201,7 @@ fun StatsScreen(st: AppState) {
             Panel {
                 T("Calendrier des 5 dernières semaines", 21, weight = FontWeight.SemiBold)
                 Spacer(Modifier.height(12.dp))
-                HeatGrid(ratio)
+                HeatGrid(st, ratio)
             }
 
             GhostButton("Réinitialiser la démo") { st.resetDemo() }
@@ -327,7 +327,7 @@ private fun Donut(st: AppState) {
 private val HEAT_COLORS = listOf(Color(0x12A98BFF), Color(0xFF2D1A70), Color(0xFF5B34C8), Color(0xFF9A6BFF), Color(0xFFE0D2FF))
 
 @Composable
-private fun HeatGrid(ratio: Float) {
+private fun HeatGrid(st: AppState, ratio: Float) {
     Row(Modifier.fillMaxWidth()) {
         "LMMJVSD".forEach { T(it.toString(), 12, C.Muted, Modifier.weight(1f), align = TextAlign.Center) }
     }
@@ -339,7 +339,7 @@ private fun HeatGrid(ratio: Float) {
                 val shape = RoundedCornerShape(6.dp)
                 val m = Modifier.weight(1f).aspectRatio(1f).padding(3.dp).clip(shape)
                 when {
-                    i < 33 -> Box(m.background(HEAT_COLORS[HEAT[i]]))
+                    i < 33 -> Box(m.background(HEAT_COLORS[st.dayLevel(i - 33)]))
                     i == 33 -> Box(m.background(HEAT_COLORS[ceil(4f * ratio).toInt().coerceIn(0, 4)]).border(2.dp, C.Text, shape))
                     else -> Box(m.border(1.5.dp, C.Violet.copy(alpha = 0.25f), shape))
                 }

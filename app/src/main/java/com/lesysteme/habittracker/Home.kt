@@ -76,10 +76,10 @@ fun HomeScreen(st: AppState) {
     val due = st.dueToday()
     val doneN = due.count { st.done.contains(it.id) }
     val ratio = if (due.isEmpty()) 0f else doneN.toFloat() / due.size
-    val past = HEAT.takeLast(5)
+    val past = (-5..-1).map { st.dayLevel(it) }
     val pct = (100f * (past.sum() / 4f + ratio) / 6f).roundToInt()
     val perfect = past.count { it == 4 } + (if (due.isNotEmpty() && doneN == due.size) 1 else 0)
-    val streak = (if (FRESH) 0 else 20) + (if (doneN > 0) 1 else 0)
+    val streak = st.streak()
     val lv = levelInfo(st.total())
     val dayDone = hs.count { st.isDoneOn(it, st.selDiff) }
     val hidden = if (st.selDiff >= 0) st.habits.filter { st.hidden(it, st.selDiff) } else emptyList()
@@ -144,8 +144,8 @@ fun HomeScreen(st: AppState) {
                 Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     T("Ignorées ou décalées", 21, C.Muted, weight = FontWeight.SemiBold)
                     hidden.forEach { h ->
-                        val mv = st.moves["${h.id}|${st.selDiff}"]
-                        val has = st.moves.containsKey("${h.id}|${st.selDiff}")
+                        val mv = st.moveDiff(st.moves[st.ek(h.id, st.selDiff)])
+                        val has = st.moves.containsKey(st.ek(h.id, st.selDiff))
                         val label = when {
                             !has -> "Ignorée ce jour"
                             mv == null -> "Retirée"

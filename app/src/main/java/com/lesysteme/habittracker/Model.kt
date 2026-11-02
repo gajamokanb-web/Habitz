@@ -191,7 +191,7 @@ class AppState(private val ctx: Context) {
     var habits by mutableStateOf(initialHabits())
     var done by mutableStateOf(INIT_DONE)
     var skips by mutableStateOf(setOf<String>())
-    var moves by mutableStateOf(mapOf<String, Int?>())
+    var moves by mutableStateOf(mapOf<String, Long?>())
     var marks by mutableStateOf(mapOf<String, Boolean>())
     var selDiff by mutableStateOf(0)
     var openCats by mutableStateOf(setOf("sport"))
@@ -218,12 +218,16 @@ class AppState(private val ctx: Context) {
     /* ----- règles de planification ----- */
     fun isDueOn(h: Habit, idx: Int): Boolean = if (h.freq.type == "days") idx in h.freq.days else true
     fun baseDue(h: Habit, d: Int) = isDueOn(h, idxOf(d))
+    /** Clés absolues (jour calendaire) : les ignorées, décalées et validations survivent au changement de jour. */
+    fun ek(id: String, d: Int): String = "$id|${dateAt(d).toEpochDay()}"
+    fun moveDiff(v: Long?): Int? = v?.let { (it - LocalDate.now().toEpochDay()).toInt() }
+
     fun hidden(h: Habit, d: Int) =
-        baseDue(h, d) && (skips.contains("${h.id}|$d") || moves.containsKey("${h.id}|$d"))
+        baseDue(h, d) && (skips.contains(ek(h.id, d)) || moves.containsKey(ek(h.id, d)))
 
     /** Clé de déplacement si la quête a été décalée vers le jour d. */
     fun movedInKey(h: Habit, d: Int): String? =
-        moves.entries.firstOrNull { it.key.startsWith(h.id + "|") && it.value == d }?.key
+        moves.entries.firstOrNull { it.key.startsWith(h.id + "|") && it.value == dateAt(d).toEpochDay() }?.key
 
     fun occurs(h: Habit, d: Int) = (baseDue(h, d) && !hidden(h, d)) || movedInKey(h, d) != null
     fun dayList(d: Int): List<Habit> = habits.filter { occurs(it, d) }
@@ -232,12 +236,34 @@ class AppState(private val ctx: Context) {
     fun lvlFor(diff: Int): Int {
         if (diff >= 0) return 0
         val k = 33 + diff
-        return if (k >= 0) HEAT[k] else 2
+        return if (k >= 0) HEAT[k] else if (FRESH) 0 else 2
+    }
+
+    /** Niveau de la journée d (0 à 4), calculé depuis les validations réelles. */
+    fun dayLevel(d: Int): Int {
+        val hs = dayList(d)
+        if (hs.isEmpty()) return 0
+        val n = hs.count { isDoneOn(it, d) }
+        return kotlin.math.ceil(4f * n / hs.size).toInt().coerceIn(0, 4)
+    }
+
+    /** Série en cours : jours consécutifs avec au moins une quête validée (jours sans quête neutres). */
+    fun streak(): Int {
+        val lim = if (FRESH) 365 else 33
+        var d = if (dayList(0).isNotEmpty() && dayLevel(0) == 0) -1 else 0
+        var n = 0
+        while (d >= -lim) {
+            if (dayList(d).isNotEmpty()) {
+                if (dayLevel(d) > 0) n++ else break
+            }
+            d--
+        }
+        return n
     }
 
     fun isDoneOn(h: Habit, d: Int): Boolean {
         if (d == 0) return done.contains(h.id)
-        val m = marks["${h.id}|$d"]
+        val m = marks[ek(h.id, d)]
         if (m != null) return m
         if (d < 0) {
             val hs = dayList(d)
@@ -260,7 +286,7 @@ class AppState(private val ctx: Context) {
     fun toggleQuest(id: String) {
         val h = habits.firstOrNull { it.id == id } ?: return
         if (selDiff != 0) {
-            val k = "$id|$selDiff"
+            val k = ek(id, selDiff)
             val was = isDoneOn(h, selDiff)
             marks = marks + (k to !was)
             toast(if (was) "Validation retirée" else "Quête validée")
@@ -281,7 +307,7 @@ class AppState(private val ctx: Context) {
 
     fun skipDay(h: Habit) {
         val mk = movedInKey(h, selDiff)
-        if (mk != null) moves = moves + (mk to null) else skips = skips + "${h.id}|$selDiff"
+        if (mk != null) moves = moves + (mk to null) else skips = skips + ek(h.id, selDiff)
         done = done - h.id
         toast("Quête ignorée pour ce jour")
         save()
@@ -290,11 +316,12 @@ class AppState(private val ctx: Context) {
     fun moveTo(h: Habit, target: Int) {
         val mk = movedInKey(h, selDiff)
         if (mk != null) {
-            val from = mk.substringAfter("|").toInt()
-            moves = if (target == from) moves - mk else moves + (mk to target)
+            val from = mk.substringAfter("|").toLong()
+            val tgt = dateAt(target).toEpochDay()
+            moves = if (tgt == from) moves - mk else moves + (mk to tgt)
         } else {
-            skips = skips - "${h.id}|$selDiff"
-            moves = moves + ("${h.id}|$selDiff" to target)
+            skips = skips - ek(h.id, selDiff)
+            moves = moves + (ek(h.id, selDiff) to dateAt(target).toEpochDay())
         }
         done = done - h.id
         toast("Quête décalée")
@@ -309,7 +336,7 @@ class AppState(private val ctx: Context) {
     }
 
     fun restore(h: Habit) {
-        val k = "${h.id}|$selDiff"
+        val k = ek(h.id, selDiff)
         skips = skips - k
         moves = moves - k
         toast("Quête rétablie")
@@ -432,19 +459,24 @@ class AppState(private val ctx: Context) {
             habits = o.getJSONArray("habits").let { a -> (0 until a.length()).map { habitFromJson(a.getJSONObject(it)) } }
             achs = o.getJSONArray("achievements").let { a -> (0 until a.length()).map { achFromJson(a.getJSONObject(it)) } }
             val stored = o.getLong("doneDate")
-            if (stored == LocalDate.now().toEpochDay()) {
-                done = o.getJSONArray("doneToday").let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
-                skips = o.getJSONArray("skips").let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
-                moves = o.getJSONObject("moves").let { m ->
-                    m.keys().asSequence().associateWith { k -> if (m.isNull(k)) null else m.getInt(k) }
-                }
-                marks = o.getJSONObject("marks").let { m -> m.keys().asSequence().associateWith { k -> m.getBoolean(k) } }
+            val today = LocalDate.now().toEpochDay()
+            val ids = o.getJSONArray("doneToday").let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
+            skips = o.getJSONArray("skips").let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
+            moves = o.getJSONObject("moves").let { m ->
+                m.keys().asSequence().associateWith { k -> if (m.isNull(k)) null else m.getLong(k) }
+            }
+            marks = o.getJSONObject("marks").let { m -> m.keys().asSequence().associateWith { k -> m.getBoolean(k) } }
+            if (stored == today) {
+                done = ids
             } else {
-                // Nouveau jour : les XP des quêtes validées sont verrouillés dans la base.
-                val ids = o.getJSONArray("doneToday").let { a -> (0 until a.length()).map { a.getString(it) }.toSet() }
+                // Nouveau jour : on archive la journée passée (validées ou non) et on verrouille son XP.
+                val past = LinkedHashMap(marks)
+                habits.forEach { h -> past["${h.id}|$stored"] = h.id in ids }
+                marks = past
                 xpBase += habits.filter { it.id in ids }.sumOf { it.xp }
-                done = emptySet()
-                doneDate = LocalDate.now().toEpochDay()
+                // Quêtes validées en avance pour aujourd'hui.
+                done = habits.filter { marks["${it.id}|$today"] == true }.map { it.id }.toSet()
+                doneDate = today
             }
         } catch (e: Exception) {
             // Sauvegarde illisible : on garde les valeurs de démo.
